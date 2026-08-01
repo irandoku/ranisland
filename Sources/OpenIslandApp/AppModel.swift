@@ -852,6 +852,10 @@ final class AppModel {
         return !surfacedSessions.contains { $0.phase.requiresAttention || $0.phase == .running }
     }
 
+    var shouldShowMusicInOpenedPanel: Bool {
+        shouldShowMusicAsIdle && islandListSessions.isEmpty
+    }
+
     /// The aggregate UnifiedBars state for the closed island. Waiting beats
     /// running; everything else is idle. Completed sessions are absorbed
     /// directly into idle so the pill never stops on a tick glyph.

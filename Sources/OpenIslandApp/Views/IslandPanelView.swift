@@ -428,7 +428,7 @@ struct IslandPanelView: View {
                     .padding(.top, 8)
             } else if isNotificationMode {
                 sessionList
-            } else if model.shouldShowMusicAsIdle {
+            } else if model.shouldShowMusicInOpenedPanel {
                 if let playback = model.mediaPlayback.playback {
                     MusicNotchView(
                         playback: playback,
