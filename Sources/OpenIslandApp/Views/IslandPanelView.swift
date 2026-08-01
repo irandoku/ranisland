@@ -426,7 +426,9 @@ struct IslandPanelView: View {
                 sessionBootstrapPlaceholder
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
-            } else if model.islandListSessions.isEmpty {
+            } else if isNotificationMode {
+                sessionList
+            } else if model.shouldShowMusicAsIdle {
                 if let playback = model.mediaPlayback.playback {
                     MusicNotchView(
                         playback: playback,
@@ -437,6 +439,8 @@ struct IslandPanelView: View {
                 } else {
                     emptyState
                 }
+            } else if model.islandListSessions.isEmpty {
+                emptyState
             } else {
                 sessionList
             }

@@ -91,6 +91,58 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func musicWinsOnlyWhenAgentSurfaceIsIdle() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let provider = AppleMusicProvider(runningCheck: { false })
+        let model = AppModel(mediaPlayback: MediaPlaybackStore(provider: provider))
+        provider.onUpdate?(AppleMusicPlaybackInfo(
+            state: .playing,
+            title: "Track",
+            artist: "Artist",
+            album: "Album",
+            position: 10,
+            duration: 100,
+            artworkData: nil,
+            observedAt: now
+        ))
+
+        var completed = AgentSession(
+            id: "completed-session",
+            title: "Codex · repo",
+            tool: .codex,
+            origin: .live,
+            attachmentState: .attached,
+            phase: .completed,
+            summary: "Finished",
+            updatedAt: now
+        )
+        completed.isProcessAlive = true
+        model.state = SessionState(sessions: [completed])
+
+        #expect(model.shouldShowMusicAsIdle)
+        #expect(model.islandClosedMode == .running)
+
+        var running = completed
+        running.id = "running-session"
+        running.phase = .running
+        model.state = SessionState(sessions: [running])
+        #expect(!model.shouldShowMusicAsIdle)
+        #expect(model.islandClosedMode == .running)
+
+        var waiting = running
+        waiting.id = "waiting-session"
+        waiting.phase = .waitingForApproval
+        waiting.permissionRequest = PermissionRequest(
+            title: "Approve",
+            summary: "Allow command",
+            affectedPath: "/tmp/file"
+        )
+        model.state = SessionState(sessions: [waiting])
+        #expect(!model.shouldShowMusicAsIdle)
+        #expect(model.islandClosedMode == .waiting)
+    }
+
+    @Test
     func islandListDeduplicatesSessionsSharingTheSameLiveGhosttyTerminal() {
         let now = Date(timeIntervalSince1970: 2_000)
         let model = AppModel()

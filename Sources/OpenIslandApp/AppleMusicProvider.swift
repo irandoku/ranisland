@@ -20,6 +20,8 @@ struct AppleMusicPlaybackInfo: Equatable, Sendable {
 
     var isPlaying: Bool { state == .playing }
 
+    var isPresentable: Bool { state == .playing || state == .paused }
+
     static func parse(_ output: String) -> Self? {
         let fields = output
             .trimmingCharacters(in: .whitespacesAndNewlines)

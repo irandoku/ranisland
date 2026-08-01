@@ -25,6 +25,42 @@ struct AppleMusicProviderTests {
     }
 
     @Test
+    func onlyPlayingAndPausedPlaybackIsPresentable() {
+        let base = AppleMusicPlaybackInfo(
+            state: .playing,
+            title: "Track",
+            artist: "Artist",
+            album: "Album",
+            position: 0,
+            duration: 100,
+            artworkData: nil,
+            observedAt: .now
+        )
+
+        #expect(base.isPresentable)
+        #expect(AppleMusicPlaybackInfo(
+            state: .paused,
+            title: base.title,
+            artist: base.artist,
+            album: base.album,
+            position: base.position,
+            duration: base.duration,
+            artworkData: nil,
+            observedAt: base.observedAt
+        ).isPresentable)
+        #expect(!AppleMusicPlaybackInfo(
+            state: .stopped,
+            title: base.title,
+            artist: base.artist,
+            album: base.album,
+            position: base.position,
+            duration: base.duration,
+            artworkData: nil,
+            observedAt: base.observedAt
+        ).isPresentable)
+    }
+
+    @Test
     func controlActionsMapToMusicAppleScriptCommands() {
         #expect(AppleMusicProvider.ControlAction.previous.rawValue == "previous track")
         #expect(AppleMusicProvider.ControlAction.togglePlayback.rawValue == "playpause")

@@ -68,7 +68,7 @@ final class AppModel {
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
-    let mediaPlayback = MediaPlaybackStore()
+    let mediaPlayback: MediaPlaybackStore
 
     var notchStatus: NotchStatus {
         get { overlay.notchStatus }
@@ -587,10 +587,12 @@ final class AppModel {
         },
         isNotificationSessionAlreadyFrontmost: @escaping @Sendable (AgentSession) async -> Bool = { session in
             await ForegroundTerminalSessionProbe().matches(session: session)
-        }
+        },
+        mediaPlayback: MediaPlaybackStore = MediaPlaybackStore()
     ) {
         self.terminalJumpAction = terminalJumpAction
         self.isNotificationSessionAlreadyFrontmost = isNotificationSessionAlreadyFrontmost
+        self.mediaPlayback = mediaPlayback
         UserDefaults.standard.register(defaults: [
             Self.showDockIconDefaultsKey: true,
             Self.hapticFeedbackEnabledDefaultsKey: false,
@@ -839,6 +841,11 @@ final class AppModel {
 
     // MARK: - v6 closed-island derivation
 
+    var shouldShowMusicAsIdle: Bool {
+        guard mediaPlayback.playback?.isPresentable == true else { return false }
+        return !surfacedSessions.contains { $0.phase.requiresAttention || $0.phase == .running }
+    }
+
     /// The aggregate UnifiedBars state for the closed island. Waiting beats
     /// running; everything else is idle. Completed sessions are absorbed
     /// directly into idle so the pill never stops on a tick glyph.
@@ -846,7 +853,7 @@ final class AppModel {
         let sessions = surfacedSessions
         if sessions.contains(where: { $0.phase.requiresAttention }) { return .waiting }
         if sessions.contains(where: { $0.phase == .running })       { return .running }
-        if sessions.isEmpty, mediaPlayback.playback?.isPlaying == true { return .running }
+        if shouldShowMusicAsIdle, mediaPlayback.playback?.isPlaying == true { return .running }
         return .idle
     }
 
@@ -863,6 +870,10 @@ final class AppModel {
     /// `islandCenterLabel` user preference.
     func islandClosedLabel() -> String? {
         guard islandCenterLabel != .off else { return nil }
+
+        if shouldShowMusicAsIdle {
+            return mediaPlayback.playback?.title
+        }
 
         guard let session = islandClosedSpotlight else {
             return mediaPlayback.playback?.title
