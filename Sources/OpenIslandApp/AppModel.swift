@@ -68,6 +68,7 @@ final class AppModel {
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
+    let mediaPlayback = MediaPlaybackStore()
 
     var notchStatus: NotchStatus {
         get { overlay.notchStatus }
@@ -845,6 +846,7 @@ final class AppModel {
         let sessions = surfacedSessions
         if sessions.contains(where: { $0.phase.requiresAttention }) { return .waiting }
         if sessions.contains(where: { $0.phase == .running })       { return .running }
+        if sessions.isEmpty, mediaPlayback.playback?.isPlaying == true { return .running }
         return .idle
     }
 
@@ -860,8 +862,11 @@ final class AppModel {
     /// Text to show in the closed island's center label. Respects the
     /// `islandCenterLabel` user preference.
     func islandClosedLabel() -> String? {
-        guard islandCenterLabel != .off,
-              let session = islandClosedSpotlight else { return nil }
+        guard islandCenterLabel != .off else { return nil }
+
+        guard let session = islandClosedSpotlight else {
+            return mediaPlayback.playback?.title
+        }
 
         switch islandCenterLabel {
         case .off:
@@ -1071,6 +1076,7 @@ final class AppModel {
             return
         }
         hasStarted = true
+        mediaPlayback.start()
 
         if loadRuntimeState {
             isResolvingInitialLiveSessions = true

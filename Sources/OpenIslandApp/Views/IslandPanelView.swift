@@ -427,9 +427,11 @@ struct IslandPanelView: View {
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
             } else if model.islandListSessions.isEmpty {
-                emptyState
-                    .padding(.horizontal, 18)
-                    .padding(.top, 8)
+                if let playback = model.mediaPlayback.playback {
+                    MusicNotchView(playback: playback)
+                } else {
+                    emptyState
+                }
             } else {
                 sessionList
             }
