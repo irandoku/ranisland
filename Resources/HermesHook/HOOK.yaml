@@ -1,0 +1,8 @@
+name: openisland
+description: Forward Hermes gateway lifecycle events to Open Island over the local read-only observer bridge.
+events:
+  - session:start
+  - session:end
+  - agent:start
+  - agent:step
+  - agent:end
