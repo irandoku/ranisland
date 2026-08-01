@@ -6,6 +6,8 @@ This repository is an independent fork, not an official Open Island release. Ver
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square)](LICENSE)
 
+[简体中文](README.zh-CN.md) · [繁體中文（台灣）](README.zh-TW.md)
+
 ## v0.1.0
 
 - Keeps the existing agent session list, status display, approvals, and jump-back workflow.
