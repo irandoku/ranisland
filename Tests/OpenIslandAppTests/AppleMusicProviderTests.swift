@@ -23,4 +23,11 @@ struct AppleMusicProviderTests {
         #expect(AppleMusicPlaybackInfo.parse("") == nil)
         #expect(AppleMusicPlaybackInfo.parse("paused\u{1F}\u{1F}Artist\u{1F}Album\u{1F}0\u{1F}240") == nil)
     }
+
+    @Test
+    func controlActionsMapToMusicAppleScriptCommands() {
+        #expect(AppleMusicProvider.ControlAction.previous.rawValue == "previous track")
+        #expect(AppleMusicProvider.ControlAction.togglePlayback.rawValue == "playpause")
+        #expect(AppleMusicProvider.ControlAction.next.rawValue == "next track")
+    }
 }

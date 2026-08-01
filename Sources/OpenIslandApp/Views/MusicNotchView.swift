@@ -3,6 +3,9 @@ import SwiftUI
 
 struct MusicNotchView: View {
     let playback: AppleMusicPlaybackInfo
+    let onPrevious: () -> Void
+    let onTogglePlayback: () -> Void
+    let onNext: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -31,6 +34,16 @@ struct MusicNotchView: View {
                         .tint(.white.opacity(0.72))
                         .accessibilityLabel("Music progress")
                 }
+
+                HStack(spacing: 18) {
+                    controlButton("backward.fill", label: "Previous track", action: onPrevious)
+                    controlButton(
+                        playback.isPlaying ? "pause.fill" : "play.fill",
+                        label: playback.isPlaying ? "Pause" : "Play",
+                        action: onTogglePlayback
+                    )
+                    controlButton("forward.fill", label: "Next track", action: onNext)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 20)
@@ -46,6 +59,21 @@ struct MusicNotchView: View {
             ? max(0, date.timeIntervalSince(playback.observedAt))
             : 0
         return min(1, (playback.position + elapsed) / playback.duration)
+    }
+
+    private func controlButton(
+        _ systemName: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.82))
+                .frame(width: 28, height: 24)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder

@@ -22,4 +22,8 @@ final class MediaPlaybackStore {
         provider.stop()
         playback = nil
     }
+
+    func perform(_ action: AppleMusicProvider.ControlAction) {
+        provider.perform(action)
+    }
 }

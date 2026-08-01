@@ -49,11 +49,19 @@ struct AppleMusicPlaybackInfo: Equatable, Sendable {
 final class AppleMusicProvider {
     typealias CommandRunner = @Sendable () -> String?
     typealias RunningCheck = @Sendable () -> Bool
+    typealias ActionRunner = @Sendable (String) -> Void
+
+    enum ControlAction: String, Sendable {
+        case previous = "previous track"
+        case togglePlayback = "playpause"
+        case next = "next track"
+    }
 
     private static let notificationName = Notification.Name("com.apple.Music.playerInfo")
 
     private let commandRunner: CommandRunner
     private let runningCheck: RunningCheck
+    private let actionRunner: ActionRunner
     private var notificationToken: NSObjectProtocol?
     private var refreshTask: Task<Void, Never>?
 
@@ -61,10 +69,12 @@ final class AppleMusicProvider {
 
     init(
         commandRunner: CommandRunner? = nil,
-        runningCheck: RunningCheck? = nil
+        runningCheck: RunningCheck? = nil,
+        actionRunner: ActionRunner? = nil
     ) {
         self.commandRunner = commandRunner ?? AppleMusicProvider.fetchPlaybackInfo
         self.runningCheck = runningCheck ?? AppleMusicProvider.isMusicRunning
+        self.actionRunner = actionRunner ?? AppleMusicProvider.runControlScript
     }
 
     func start() {
@@ -109,6 +119,11 @@ final class AppleMusicProvider {
         }
     }
 
+    func perform(_ action: ControlAction) {
+        guard runningCheck() else { return }
+        actionRunner(action.rawValue)
+    }
+
     nonisolated private static func isMusicRunning() -> Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").isEmpty
     }
@@ -130,6 +145,17 @@ final class AppleMusicProvider {
         } catch {
             return nil
         }
+    }
+
+    nonisolated private static func runControlScript(_ command: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "tell application \"Music\" to \(command)"]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+
+        try? process.run()
+        process.waitUntilExit()
     }
 
     nonisolated private static let appleScript = """

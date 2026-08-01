@@ -428,7 +428,12 @@ struct IslandPanelView: View {
                     .padding(.top, 8)
             } else if model.islandListSessions.isEmpty {
                 if let playback = model.mediaPlayback.playback {
-                    MusicNotchView(playback: playback)
+                    MusicNotchView(
+                        playback: playback,
+                        onPrevious: { model.mediaPlayback.perform(.previous) },
+                        onTogglePlayback: { model.mediaPlayback.perform(.togglePlayback) },
+                        onNext: { model.mediaPlayback.perform(.next) }
+                    )
                 } else {
                     emptyState
                 }
