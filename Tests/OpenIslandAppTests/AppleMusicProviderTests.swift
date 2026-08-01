@@ -66,4 +66,18 @@ struct AppleMusicProviderTests {
         #expect(AppleMusicProvider.ControlAction.togglePlayback.rawValue == "playpause")
         #expect(AppleMusicProvider.ControlAction.next.rawValue == "next track")
     }
+
+    @Test
+    func parsesMediaRemoteArtworkPayload() {
+        let output = Data(
+            #"{"title":"Track title","artist":"Artist","album":"Album","artworkData":"YXJ0"}"#.utf8
+        )
+
+        let payload = MediaRemoteArtworkPayload.parse(output)
+
+        #expect(payload?.title == "Track title")
+        #expect(payload?.artist == "Artist")
+        #expect(payload?.album == "Album")
+        #expect(payload?.decodedArtwork == Data("art".utf8))
+    }
 }

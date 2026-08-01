@@ -5,6 +5,16 @@ import OpenIslandCore
 
 struct IslandSurfaceTests {
     @Test
+    func musicSurfaceIsNotActionable() {
+        let surface = IslandSurface.music
+
+        #expect(surface.sessionID == nil)
+        #expect(!surface.isNotificationCard)
+        #expect(surface.matchesCurrentState(of: nil))
+        #expect(!surface.autoDismissesWhenPresentedAsNotification(session: nil))
+    }
+
+    @Test
     func permissionEventsRouteToActionableSurface() {
         let event = AgentEvent.permissionRequested(
             PermissionRequested(

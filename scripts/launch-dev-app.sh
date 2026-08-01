@@ -90,15 +90,11 @@ cat > "$plist_path" <<EOF
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Open Island needs automation access to control Music and focus Terminal and iTerm sessions for jump-back.</string>
+    <string>Ran Island needs automation access to control Music and focus Terminal and iTerm sessions for jump-back.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
-    <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/Octane0411/open-vibe-island/main/appcast.xml</string>
-    <key>SUPublicEDKey</key>
-    <string>3IF8txq9RRNanzE2FNhyGRcwhslTucCcJHpTkpxcgBQ=</string>
 </dict>
 </plist>
 EOF

@@ -509,8 +509,13 @@ final class OverlayPanelController {
             sessions: model.islandListSessions
         )
 
+        if model.islandSurface == .music {
+            return MusicNotchView.preferredHeight
+        }
+
         if visibleSessions.isEmpty {
             return Self.openedEmptyStateHeight
+                + (model.presentableMusicPlayback == nil ? 0 : MusicMiniPlayer.preferredHeight)
         }
 
         let actionableID = model.islandSurface.sessionID
@@ -547,7 +552,8 @@ final class OverlayPanelController {
         let listHeight = rowsHeight + spacingHeight
         // Cap to match AutoHeightScrollView's maxHeight in IslandPanelView.
         let cappedListHeight = min(listHeight, Self.maxSessionListHeight)
-        return cappedListHeight + Self.openedContentVerticalInsets
+        let miniPlayerHeight = model.presentableMusicPlayback == nil ? 0 : MusicMiniPlayer.preferredHeight
+        return cappedListHeight + Self.openedContentVerticalInsets + miniPlayerHeight
     }
 
     /// Additional height for the actionable session's inline action area.

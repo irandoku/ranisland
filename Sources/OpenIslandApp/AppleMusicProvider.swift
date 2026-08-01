@@ -22,6 +22,19 @@ struct AppleMusicPlaybackInfo: Equatable, Sendable {
 
     var isPresentable: Bool { state == .playing || state == .paused }
 
+    func replacingArtwork(with artworkData: Data) -> Self {
+        Self(
+            state: state,
+            title: title,
+            artist: artist,
+            album: album,
+            position: position,
+            duration: duration,
+            artworkData: artworkData,
+            observedAt: observedAt
+        )
+    }
+
     static func parse(_ output: String) -> Self? {
         let fields = output
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,11 +60,28 @@ struct AppleMusicPlaybackInfo: Equatable, Sendable {
     }
 }
 
+struct MediaRemoteArtworkPayload: Decodable, Equatable {
+    let title: String?
+    let artist: String?
+    let album: String?
+    let artworkData: String?
+
+    var decodedArtwork: Data? {
+        guard let artworkData, !artworkData.isEmpty else { return nil }
+        return Data(base64Encoded: artworkData, options: .ignoreUnknownCharacters)
+    }
+
+    static func parse(_ output: Data) -> Self? {
+        try? JSONDecoder().decode(Self.self, from: output)
+    }
+}
+
 @MainActor
 final class AppleMusicProvider {
     typealias CommandRunner = @Sendable () -> String?
     typealias RunningCheck = @Sendable () -> Bool
     typealias ActionRunner = @Sendable (String) -> Void
+    typealias ArtworkRunner = @Sendable (AppleMusicPlaybackInfo) -> Data?
 
     enum ControlAction: String, Sendable {
         case previous = "previous track"
@@ -64,6 +94,7 @@ final class AppleMusicProvider {
     private let commandRunner: CommandRunner
     private let runningCheck: RunningCheck
     private let actionRunner: ActionRunner
+    private let artworkRunner: ArtworkRunner
     private var notificationToken: NSObjectProtocol?
     private var refreshTask: Task<Void, Never>?
 
@@ -72,11 +103,13 @@ final class AppleMusicProvider {
     init(
         commandRunner: CommandRunner? = nil,
         runningCheck: RunningCheck? = nil,
-        actionRunner: ActionRunner? = nil
+        actionRunner: ActionRunner? = nil,
+        artworkRunner: ArtworkRunner? = nil
     ) {
         self.commandRunner = commandRunner ?? AppleMusicProvider.fetchPlaybackInfo
         self.runningCheck = runningCheck ?? AppleMusicProvider.isMusicRunning
         self.actionRunner = actionRunner ?? AppleMusicProvider.runControlScript
+        self.artworkRunner = artworkRunner ?? AppleMusicProvider.fetchMediaRemoteArtwork
     }
 
     func start() {
@@ -111,11 +144,19 @@ final class AppleMusicProvider {
 
         refreshTask?.cancel()
         let commandRunner = self.commandRunner
+        let artworkRunner = self.artworkRunner
         let apply: @MainActor @Sendable (AppleMusicPlaybackInfo?) -> Void = { [weak self] playback in
             self?.onUpdate?(playback)
         }
         refreshTask = Task.detached {
-            let playback = commandRunner().flatMap(AppleMusicPlaybackInfo.parse)
+            let playback = commandRunner().flatMap(AppleMusicPlaybackInfo.parse).map { playback in
+                guard playback.artworkData == nil,
+                      let artworkData = artworkRunner(playback)
+                else {
+                    return playback
+                }
+                return playback.replacingArtwork(with: artworkData)
+            }
             guard !Task.isCancelled else { return }
             await apply(playback)
         }
@@ -160,24 +201,77 @@ final class AppleMusicProvider {
         process.waitUntilExit()
     }
 
+    nonisolated private static func fetchMediaRemoteArtwork(
+        for playback: AppleMusicPlaybackInfo
+    ) -> Data? {
+        guard let resourceURL = Bundle.appResources.resourceURL else {
+            return nil
+        }
+        let scriptURL = resourceURL.appendingPathComponent("mediaremote-artwork.pl")
+        let frameworkURL = resourceURL.appendingPathComponent("MediaRemoteAdapter")
+        guard FileManager.default.isReadableFile(atPath: scriptURL.path),
+              FileManager.default.isReadableFile(atPath: frameworkURL.path)
+        else {
+            return nil
+        }
+
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
+        process.arguments = [scriptURL.path, frameworkURL.path]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0,
+                  let payload = MediaRemoteArtworkPayload.parse(data),
+                  payload.title == playback.title,
+                  let artwork = payload.decodedArtwork,
+                  !artwork.isEmpty
+            else {
+                return nil
+            }
+
+            if let artist = payload.artist,
+               !artist.isEmpty,
+               !playback.artist.isEmpty,
+               artist != playback.artist
+            {
+                return nil
+            }
+            return artwork
+        } catch {
+            return nil
+        }
+    }
+
     nonisolated private static let appleScript = """
     tell application "Music"
         set currentTrack to current track
         set separator to character id 31
+        set artworkPath to ""
+        set artworkData to missing value
         set artworkBase64 to ""
         try
-            if (count of artworks of currentTrack) > 0 then
-                set artworkPath to do shell script "/usr/bin/mktemp /tmp/openisland-artwork.XXXXXX"
-                set artworkFile to open for access (POSIX file artworkPath) with write permission
-                write (data of artwork 1 of currentTrack) to artworkFile
-                close access artworkFile
-                set artworkBase64 to do shell script "/usr/bin/base64 -b 0 -i " & quoted form of artworkPath
-                do shell script "/bin/rm -f " & quoted form of artworkPath
-            end if
+            set artworkPath to do shell script "/usr/bin/mktemp /tmp/openisland-artwork.XXXXXX"
+            set artworkFile to open for access (POSIX file artworkPath) with write permission
+            set artworkData to get data of artwork 1 of currentTrack
+            write artworkData to artworkFile
+            close access artworkFile
+            set artworkBase64 to do shell script "/usr/bin/base64 -b 0 -i " & quoted form of artworkPath
+            do shell script "/bin/rm -f " & quoted form of artworkPath
         on error
             try
                 close access artworkFile
             end try
+            if artworkPath is not "" then
+                try
+                    do shell script "/bin/rm -f " & quoted form of artworkPath
+                end try
+            end if
         end try
         return (player state as text) & separator & (name of currentTrack as text) & separator & (artist of currentTrack as text) & separator & (album of currentTrack as text) & separator & (player position as text) & separator & (duration of currentTrack as text) & separator & artworkBase64
     end tell

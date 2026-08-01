@@ -30,7 +30,7 @@ if [[ ! -f "$appcast" ]]; then
     exit 1
 fi
 
-download_url="https://github.com/Octane0411/open-vibe-island/releases/download/v${VERSION}/Open.Island.zip"
+download_url="https://github.com/irandoku/ranisland/releases/download/v${VERSION}/Ran.Island.zip"
 
 # Use Python for reliable XML-adjacent text insertion
 python3 - "$appcast" "$VERSION" "$BUILD_NUMBER" "$ED_SIGNATURE" "$LENGTH" "$PUB_DATE" "$download_url" <<'PYEOF'
@@ -61,7 +61,7 @@ new_item = f"""        <item>
 with open(appcast_path, "r") as f:
     content = f.read()
 
-marker = "<!-- Items are added by the release workflow. See docs/releasing.md. -->"
+marker = "<!-- Items are added by the release workflow. See scripts/update-appcast.sh. -->"
 if marker not in content:
     print("Error: marker comment not found in appcast.xml", file=sys.stderr)
     sys.exit(1)

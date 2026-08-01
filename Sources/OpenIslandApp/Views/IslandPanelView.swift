@@ -160,7 +160,9 @@ struct IslandPanelView: View {
     }
 
     private var openedHeaderButtonsWidth: CGFloat {
-        (Self.headerControlButtonSize * 3) + (Self.headerControlSpacing * 2)
+        let buttonCount = isMusicSurface ? 4 : 3
+        return (Self.headerControlButtonSize * CGFloat(buttonCount))
+            + (Self.headerControlSpacing * CGFloat(buttonCount - 1))
     }
 
     private var openedHeaderHorizontalPadding: CGFloat {
@@ -277,6 +279,7 @@ struct IslandPanelView: View {
             mode: model.islandClosedMode,
             label: layout == .external ? model.islandClosedLabel() : nil,
             rightSlot: model.islandClosedRightSlotContent(),
+            musicPlayback: model.presentableMusicPlayback,
             layout: layout,
             height: closedNotchHeight,
             physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
@@ -376,6 +379,12 @@ struct IslandPanelView: View {
 
     private var openedHeaderButtons: some View {
         HStack(spacing: Self.headerControlSpacing) {
+            if isMusicSurface {
+                headerIconButton(systemName: "chevron.left", tint: .white.opacity(0.62)) {
+                    model.notchOpen(reason: .click, surface: .sessionList())
+                }
+            }
+
             headerIconButton(
                 systemName: model.isSoundMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                 tint: model.isSoundMuted ? .orange.opacity(0.92) : .white.opacity(0.62)
@@ -415,7 +424,7 @@ struct IslandPanelView: View {
     }
 
     private var openedContent: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             if !model.hasAnyInstalledAgent {
                 installHooksHint
                     .padding(.horizontal, 18)
@@ -428,8 +437,8 @@ struct IslandPanelView: View {
                     .padding(.top, 8)
             } else if isNotificationMode {
                 sessionList
-            } else if model.shouldShowMusicInOpenedPanel {
-                if let playback = model.mediaPlayback.playback {
+            } else if isMusicSurface {
+                if let playback = model.presentableMusicPlayback {
                     MusicNotchView(
                         playback: playback,
                         onPrevious: { model.mediaPlayback.perform(.previous) },
@@ -439,8 +448,6 @@ struct IslandPanelView: View {
                 } else {
                     emptyState
                 }
-            } else if model.islandListSessions.isEmpty {
-                emptyState
             } else {
                 sessionList
             }
@@ -528,6 +535,10 @@ struct IslandPanelView: View {
         model.notchOpenReason == .notification && actionableSessionID != nil
     }
 
+    private var isMusicSurface: Bool {
+        model.islandSurface == .music
+    }
+
     private static let maxSessionListHeight: CGFloat = 560
 
     private var sessionListSideInset: CGFloat {
@@ -563,7 +574,7 @@ struct IslandPanelView: View {
                         }
                     }
             } else {
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     sessionPanelHeader(referenceDate: referenceDate)
 
                     ScrollView(.vertical) {
@@ -571,6 +582,14 @@ struct IslandPanelView: View {
                     }
                     .scrollIndicators(.hidden)
                     .scrollBounceBehavior(.basedOnSize)
+
+                    if let playback = model.presentableMusicPlayback {
+                        MusicMiniPlayer(
+                            playback: playback,
+                            onOpen: { model.notchOpen(reason: .click, surface: .music) },
+                            onTogglePlayback: { model.mediaPlayback.perform(.togglePlayback) }
+                        )
+                    }
 
                     sessionPanelFooter
                 }

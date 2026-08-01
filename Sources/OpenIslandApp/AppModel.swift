@@ -841,13 +841,14 @@ final class AppModel {
 
     // MARK: - v6 closed-island derivation
 
-    var shouldShowMusicAsIdle: Bool {
-        guard mediaPlayback.playback?.isPresentable == true else { return false }
-        return !surfacedSessions.contains { $0.phase.requiresAttention || $0.phase == .running }
+    var presentableMusicPlayback: AppleMusicPlaybackInfo? {
+        guard let playback = mediaPlayback.playback, playback.isPresentable else { return nil }
+        return playback
     }
 
-    var shouldShowMusicInOpenedPanel: Bool {
-        shouldShowMusicAsIdle && islandListSessions.isEmpty
+    var shouldShowMusicAsIdle: Bool {
+        guard presentableMusicPlayback != nil else { return false }
+        return !surfacedSessions.contains { $0.phase.requiresAttention || $0.phase == .running }
     }
 
     /// The aggregate UnifiedBars state for the closed island. Waiting beats

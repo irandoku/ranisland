@@ -8,7 +8,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-app_name="${OPEN_ISLAND_APP_NAME:-Open Island}"
+app_name="${RANISLAND_APP_NAME:-Ran Island}"
 bundle_identifier="${OPEN_ISLAND_BUNDLE_ID:-app.openisland.dev}"
 version="${OPEN_ISLAND_VERSION:-0.1.0}"
 build_number="${OPEN_ISLAND_BUILD_NUMBER:-$(git -C "$repo_root" rev-list --count HEAD 2>/dev/null || echo 1)}"
@@ -18,6 +18,8 @@ zip_path="${OPEN_ISLAND_ZIP_PATH:-$package_root/$app_name.zip}"
 dmg_path="${OPEN_ISLAND_DMG_PATH:-$package_root/$app_name.dmg}"
 signing_identity="${OPEN_ISLAND_SIGN_IDENTITY:-}"
 notary_profile="${OPEN_ISLAND_NOTARY_PROFILE:-}"
+update_feed_url="${RANISLAND_UPDATE_FEED_URL:-}"
+update_public_key="${RANISLAND_UPDATE_PUBLIC_KEY:-}"
 
 brand_script="$repo_root/scripts/generate_brand_icons.py"
 dmg_bg_script="$repo_root/scripts/generate_dmg_background.py"
@@ -105,20 +107,22 @@ cat > "$bundle_dir/Contents/Info.plist" <<EOF
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Open Island needs automation access to control Music and focus Terminal and iTerm sessions for jump-back.</string>
+    <string>Ran Island needs automation access to control Music and focus Terminal and iTerm sessions for jump-back.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
-    <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/Octane0411/open-vibe-island/main/appcast.xml</string>
-    <key>SUPublicEDKey</key>
-    <string>${OPEN_ISLAND_EDDSA_PUBLIC_KEY:-3IF8txq9RRNanzE2FNhyGRcwhslTucCcJHpTkpxcgBQ=}</string>
 </dict>
 </plist>
 EOF
 
 plutil -lint "$bundle_dir/Contents/Info.plist" >/dev/null
+
+if [[ -n "$update_feed_url" && -n "$update_public_key" ]]; then
+    /usr/libexec/PlistBuddy -c "Add :SUFeedURL string $update_feed_url" "$bundle_dir/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $update_public_key" "$bundle_dir/Contents/Info.plist"
+    plutil -lint "$bundle_dir/Contents/Info.plist" >/dev/null
+fi
 
 # --- Verify bundle structure matches what the app expects at runtime ---
 verify_errors=0

@@ -212,6 +212,7 @@ struct V6ClosedPill: View {
     var mode: UnifiedBars.Mode
     var label: String?          // suppressed automatically in MacBook layout
     var rightSlot: IslandRightSlotContent?
+    var musicPlayback: AppleMusicPlaybackInfo? = nil
     var layout: V6ClosedLayout
     var height: CGFloat = 32
 
@@ -255,7 +256,7 @@ struct V6ClosedPill: View {
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
+                leadingContent
                     .frame(width: glyphW, height: 24)
 
                 if let label {
@@ -295,7 +296,7 @@ struct V6ClosedPill: View {
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
+                leadingContent
                     .frame(width: 24, height: 24)
 
                 Spacer(minLength: 0)
@@ -307,6 +308,27 @@ struct V6ClosedPill: View {
             .padding(.horizontal, pad)
         }
         .frame(width: outer, height: height)
+    }
+
+    @ViewBuilder
+    private var leadingContent: some View {
+        if let musicPlayback {
+            ZStack(alignment: .bottomTrailing) {
+                MusicArtworkThumbnail(playback: musicPlayback, size: 24)
+
+                if mode == .waiting {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 7, height: 7)
+                        .overlay {
+                            Circle()
+                                .stroke(V6Palette.ink, lineWidth: 1)
+                        }
+                }
+            }
+        } else {
+            UnifiedBars(mode: mode, size: 24)
+        }
     }
 }
 

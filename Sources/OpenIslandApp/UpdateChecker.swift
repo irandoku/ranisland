@@ -10,7 +10,7 @@ import Sparkle
 @MainActor
 @Observable
 final class UpdateChecker: NSObject {
-    static let releasesURL = URL(string: "https://github.com/Octane0411/open-vibe-island/releases")!
+    static let releasesURL = URL(string: "https://github.com/irandoku/ranisland/releases")!
 
     private(set) var canCheckForUpdates = false
     private(set) var hasUpdate = false
@@ -42,6 +42,11 @@ final class UpdateChecker: NSObject {
         print("[UpdateChecker] skipped in DEBUG build")
         return
         #else
+        guard let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String,
+              !feedURL.isEmpty else {
+            print("[UpdateChecker] skipped: no update feed configured")
+            return
+        }
         let updater = updaterController.updater
         updater.automaticallyChecksForUpdates = true
         updater.updateCheckInterval = 60 * 60 // 1 hour

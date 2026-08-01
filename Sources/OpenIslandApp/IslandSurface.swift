@@ -3,11 +3,14 @@ import OpenIslandCore
 
 enum IslandSurface: Equatable {
     case sessionList(actionableSessionID: String? = nil)
+    case music
 
     var sessionID: String? {
         switch self {
         case let .sessionList(actionableSessionID):
             actionableSessionID
+        case .music:
+            nil
         }
     }
 

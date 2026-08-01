@@ -105,8 +105,6 @@ struct AppModelSessionListTests {
             artworkData: nil,
             observedAt: now
         ))
-        #expect(model.shouldShowMusicInOpenedPanel)
-
         var completed = AgentSession(
             id: "completed-session",
             title: "Codex · repo",
@@ -121,7 +119,6 @@ struct AppModelSessionListTests {
         model.state = SessionState(sessions: [completed])
 
         #expect(model.shouldShowMusicAsIdle)
-        #expect(!model.shouldShowMusicInOpenedPanel)
         #expect(model.islandClosedMode == .running)
 
         var running = completed
