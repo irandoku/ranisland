@@ -70,7 +70,6 @@ public final class BridgeServer: @unchecked Sendable {
     private var pendingClaudeInteractions: [String: PendingClaudeInteraction] = [:]
     private var pendingOpenCodeInteractions: [String: PendingOpenCodeInteraction] = [:]
     private var pendingCursorInteractions: [String: PendingCursorInteraction] = [:]
-    private var hermesSessionIDsByKey: [String: String] = [:]
     /// Caches Agent tool description from preToolUse for use by the next subagentStart.
     private var pendingAgentDescriptions: [String: String] = [:]
     /// Maps toolUseID → temporary task ID for TaskCreate, so postToolUse can update with real ID.
@@ -187,7 +186,6 @@ public final class BridgeServer: @unchecked Sendable {
         pendingTaskCreations.removeAll()
         pendingOpenCodeInteractions.removeAll()
         pendingCursorInteractions.removeAll()
-        hermesSessionIDsByKey.removeAll()
 
         let activeConnections = Array(clients.values)
         activeConnections.forEach { $0.readSource.cancel() }
@@ -470,98 +468,7 @@ public final class BridgeServer: @unchecked Sendable {
 
         case let .processGeminiHook(payload):
             handleGeminiHook(payload, from: clientID)
-
-        case let .processHermesHook(payload):
-            handleHermesHook(payload, from: clientID)
         }
-    }
-
-    private func handleHermesHook(_ payload: HermesHookPayload, from clientID: UUID) {
-        if let sessionKey = payload.sessionKey,
-           let sessionID = payload.sessionID,
-           !sessionKey.isEmpty,
-           !sessionID.isEmpty {
-            hermesSessionIDsByKey[sessionKey] = sessionID
-        }
-
-        let sessionID = payload.sessionID
-            ?? payload.sessionKey.flatMap { hermesSessionIDsByKey[$0] }
-        guard let sessionID, !sessionID.isEmpty else {
-            send(.response(.acknowledged), to: clientID)
-            return
-        }
-
-        let title = payload.platform.map { "Hermes · \($0.capitalized)" } ?? "Hermes"
-        let summary = payload.message?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sessionExists = localState.session(id: sessionID) != nil
-
-        func ensureSession() {
-            guard localState.session(id: sessionID) == nil else { return }
-            emit(
-                .sessionStarted(
-                    SessionStarted(
-                        sessionID: sessionID,
-                        title: title,
-                        tool: .hermes,
-                        origin: .live,
-                        initialPhase: .completed,
-                        summary: "Hermes session ready.",
-                        timestamp: .now,
-                        isRemote: true
-                    )
-                )
-            )
-        }
-
-        switch payload.eventName {
-        case "session:start":
-            if !sessionExists {
-                ensureSession()
-            }
-
-        case "agent:start", "agent:step":
-            ensureSession()
-            emit(
-                .activityUpdated(
-                    SessionActivityUpdated(
-                        sessionID: sessionID,
-                        summary: summary.flatMap { $0.isEmpty ? nil : $0 } ?? "Hermes is working.",
-                        phase: .running,
-                        timestamp: .now
-                    )
-                )
-            )
-
-        case "agent:end":
-            ensureSession()
-            emit(
-                .activityUpdated(
-                    SessionActivityUpdated(
-                        sessionID: sessionID,
-                        summary: payload.response.flatMap { $0.isEmpty ? nil : $0 } ?? "Hermes completed the turn.",
-                        phase: .completed,
-                        timestamp: .now
-                    )
-                )
-            )
-
-        case "session:end":
-            emit(
-                .sessionCompleted(
-                    SessionCompleted(
-                        sessionID: sessionID,
-                        summary: "Hermes session ended.",
-                        timestamp: .now,
-                        isSessionEnd: true
-                    )
-                )
-            )
-
-        default:
-            break
-        }
-
-        send(.response(.acknowledged), to: clientID)
     }
 
     private func handleCodexHook(_ payload: CodexHookPayload, from clientID: UUID) {

@@ -508,12 +508,6 @@ final class AppModel {
     private var bridgeReconnectTask: Task<Void, Never>?
 
     @ObservationIgnored
-    private let hermesSessionReader = HermesSessionReader()
-
-    @ObservationIgnored
-    private var hermesMonitorTask: Task<Void, Never>?
-
-    @ObservationIgnored
     private var hasStarted = false
 
     @ObservationIgnored
@@ -1098,9 +1092,6 @@ final class AppModel {
         }
         hasStarted = true
         mediaPlayback.start()
-        if loadRuntimeState {
-            startHermesMonitoringIfNeeded()
-        }
 
         if loadRuntimeState {
             isResolvingInitialLiveSessions = true
@@ -1234,122 +1225,6 @@ final class AppModel {
                 delay = min(delay * 2, Self.bridgeMaxReconnectDelay)
             }
         }
-    }
-
-    private func startHermesMonitoringIfNeeded() {
-        guard hermesMonitorTask == nil else { return }
-
-        hermesMonitorTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let reader = self.hermesSessionReader
-
-            while !Task.isCancelled {
-                let snapshot = await Task.detached(priority: .utility) {
-                    reader.snapshot()
-                }.value
-                self.reconcileHermesSnapshot(snapshot)
-                try? await Task.sleep(for: .seconds(3))
-            }
-        }
-    }
-
-    private func reconcileHermesSnapshot(_ snapshot: HermesRuntimeSnapshot) {
-        let hermesSessions = state.sessions.filter { $0.tool == .hermes }
-        let recentCutoff = Date().addingTimeInterval(-Self.liveSessionStalenessWindow)
-
-        for record in snapshot.sessions where record.isActive
-            && (record.lastActiveAt >= recentCutoff || state.session(id: record.id) != nil) {
-            if state.session(id: record.id) == nil {
-                applyTrackedEvent(
-                    .sessionStarted(
-                        SessionStarted(
-                            sessionID: record.id,
-                            title: record.surfaceTitle,
-                            tool: .hermes,
-                            origin: .live,
-                            initialPhase: .completed,
-                            summary: "Hermes session ready.",
-                            timestamp: record.lastActiveAt,
-                            jumpTarget: hermesJumpTarget(for: record),
-                            isRemote: true
-                        )
-                    ),
-                    updateLastActionMessage: false,
-                    ingress: .rollout
-                )
-            } else if let target = hermesJumpTarget(for: record),
-                      state.session(id: record.id)?.jumpTarget != target {
-                applyTrackedEvent(
-                    .jumpTargetUpdated(
-                        JumpTargetUpdated(
-                            sessionID: record.id,
-                            jumpTarget: target,
-                            timestamp: record.lastActiveAt
-                        )
-                    ),
-                    updateLastActionMessage: false,
-                    ingress: .rollout
-                )
-            }
-        }
-
-        for record in snapshot.sessions where !record.isActive {
-            guard state.session(id: record.id)?.tool == .hermes,
-                  state.session(id: record.id)?.isSessionEnded == false else {
-                continue
-            }
-
-            applyTrackedEvent(
-                .sessionCompleted(
-                    SessionCompleted(
-                        sessionID: record.id,
-                        summary: hermesCompletionSummary(for: record),
-                        timestamp: record.endedAt ?? record.lastActiveAt,
-                        isSessionEnd: true
-                    )
-                ),
-                updateLastActionMessage: false,
-                ingress: .rollout
-            )
-        }
-
-        guard !snapshot.gateway.isRunning else { return }
-        for session in hermesSessions where !session.isSessionEnded {
-            applyTrackedEvent(
-                .sessionCompleted(
-                    SessionCompleted(
-                        sessionID: session.id,
-                        summary: "Hermes gateway is offline; session status is stale.",
-                        timestamp: .now,
-                        isSessionEnd: true
-                    )
-                ),
-                updateLastActionMessage: false,
-                ingress: .rollout
-            )
-        }
-    }
-
-    private func hermesJumpTarget(for record: HermesSessionRecord) -> JumpTarget? {
-        guard let workingDirectory = record.workingDirectory?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !workingDirectory.isEmpty else {
-            return nil
-        }
-
-        return JumpTarget(
-            terminalApp: "Terminal",
-            workspaceName: URL(fileURLWithPath: workingDirectory).lastPathComponent,
-            paneTitle: record.surfaceTitle,
-            workingDirectory: workingDirectory
-        )
-    }
-
-    private func hermesCompletionSummary(for record: HermesSessionRecord) -> String {
-        guard let reason = record.endReason?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !reason.isEmpty else {
-            return "Hermes session completed."
-        }
-        return "Hermes session ended · \(reason)"
     }
 
     func select(sessionID: String) {
