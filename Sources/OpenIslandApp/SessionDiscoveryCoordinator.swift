@@ -91,6 +91,7 @@ final class SessionDiscoveryCoordinator {
 
         let allCodex = (try? codexSessionStore.load()) ?? []
         let codexRecords = allCodex.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
+        let knownCodexTranscriptPaths = Set(codexRecords.compactMap(\.codexMetadata?.transcriptPath))
 
         let allClaude = (try? claudeSessionRegistry.load()) ?? []
         let claudeRecords = allClaude.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
@@ -101,7 +102,9 @@ final class SessionDiscoveryCoordinator {
         let allCursor = (try? cursorSessionRegistry.load()) ?? []
         let cursorRecords = allCursor.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
 
-        let discoveredCodex = codexRolloutDiscovery.discoverRecentSessions()
+        let discoveredCodex = codexRolloutDiscovery.discoverRecentSessions(
+            excludingTranscriptPaths: knownCodexTranscriptPaths
+        )
         let discoveredClaude = claudeTranscriptDiscovery.discoverRecentSessions()
 
         return StartupDiscoveryPayload(
@@ -417,10 +420,11 @@ final class SessionDiscoveryCoordinator {
 
     // MARK: - Codex.app periodic re-discovery
 
-    /// Re-scan `~/.codex/sessions/` for rollout files not yet tracked.
+    /// Scan `~/.codex/sessions/` for rollout files not yet tracked.
     /// Called periodically when Codex.app is running as a fallback when
-    /// the app-server connection is unavailable.  Throttled to at most
-    /// once per 10 seconds.
+    /// the app-server connection is unavailable. Known transcript files are
+    /// excluded so the existing incremental watcher remains the only reader
+    /// of tracked sessions.
     func rediscoverCodexAppSessionsIfNeeded() {
         let now = Date.now
         guard now.timeIntervalSince(lastCodexAppRescanDate) >= 10 else { return }
@@ -428,8 +432,15 @@ final class SessionDiscoveryCoordinator {
         lastCodexAppRescanDate = now
 
         let discovery = codexRolloutDiscovery
+        let existingTranscriptPaths = Set(
+            state.sessions
+                .filter { $0.tool == .codex }
+                .compactMap(\.codexMetadata?.transcriptPath)
+        )
         codexAppRescanTask = Task.detached(priority: .utility) { [weak self] in
-            let discovered = discovery.discoverRecentSessions()
+            let discovered = discovery.discoverRecentSessions(
+                excludingTranscriptPaths: existingTranscriptPaths
+            )
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.codexAppRescanTask = nil

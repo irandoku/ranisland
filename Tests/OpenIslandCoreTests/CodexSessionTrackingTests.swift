@@ -1195,6 +1195,12 @@ struct CodexSessionTrackingTests {
         #expect(records.first?.codexMetadata?.currentCommandPreview == nil)
         #expect(records.first?.origin == .live)
         #expect(records.first?.attachmentState == .stale)
+
+        let excludedRecords = discovery.discoverRecentSessions(
+            now: now,
+            excludingTranscriptPaths: [recentRolloutURL.path]
+        )
+        #expect(excludedRecords.isEmpty)
     }
 
     @Test
