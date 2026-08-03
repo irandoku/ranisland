@@ -48,6 +48,8 @@ DEVELOPER_DIR="/Applications/Xcode-beta.app" xcrun swift build
 DEVELOPER_DIR="/Applications/Xcode-beta.app" xcrun swift test
 ```
 
+Repository documentation is indexed in [docs/index.md](docs/index.md). The CI harness can be run locally with `zsh scripts/harness.sh ci`.
+
 The app target is `OpenIslandApp` because the internal Swift package target names are intentionally retained for v0.1.1 compatibility.
 
 ## How it is arranged
