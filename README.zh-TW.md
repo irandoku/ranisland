@@ -2,11 +2,11 @@
 
 Ran Island 是 [Open Island](https://github.com/Octane0411/open-vibe-island) 的個人 macOS fork：保留原本的 coding-agent session notch，並加入 Apple Music 的小型播放體驗。
 
-這是獨立的自用 fork，不是 Open Island 官方 release。`v0.1.0` 先維持原本的 agent 功能，再以簡單、連貫的方式加入音樂播放；Hermes 整合刻意延後，不包含在這個版本。
+這是獨立的自用 fork，不是 Open Island 官方 release。`v0.1.1` 維持原本的 agent 與音樂功能，並改善 Codex rollout discovery 的閒置 CPU 使用量。
 
 [English README](README.md) · [简体中文](README.zh-CN.md) · [GPL-3.0 License](LICENSE)
 
-## v0.1.0 功能
+## v0.1.1 功能
 
 - 保留 agent session list、狀態、核准流程與跳回原 terminal 的工作流。
 - notch 收合時：左側顯示目前 Apple Music album artwork，右側顯示 active session 數量。
@@ -14,6 +14,7 @@ Ran Island 是 [Open Island](https://github.com/Octane0411/open-vibe-island) 的
 - session list 內提供小型 Music mini-player，可查看曲目與播放／暫停。
 - 點選 mini-player 後進入完整 Apple Music 控制面板。
 - 曲目資訊與播放控制使用 AppleScript；album artwork 在需要時使用隨附的 [MediaRemote Adapter](https://github.com/ungive/mediaremote-adapter) fallback。
+- Codex rollout discovery 避免重疊掃描、重複讀取已知 transcript，以及啟動時解析過舊的完成紀錄。
 
 Swift package 內部仍保留 `OpenIsland*` target 名稱，以避免破壞既有 hooks、App Support 資料與本機自動化；公開專案名稱則是 Ran Island。
 
@@ -24,7 +25,7 @@ Swift package 內部仍保留 `OpenIsland*` target 名稱，以避免破壞既�
 - Apple Music
 - macOS 詢問時，允許 Ran Island 控制 Music 或聚焦 terminal 的 Automation 權限
 
-目前 v0.1.0 實測環境是 macOS 27 beta 與 Xcode 27 beta；這是目前已驗證的環境，不代表所有 macOS／Xcode 組合都已驗證。
+目前 v0.1.1 實測環境是 macOS 27 beta 與 Xcode 27 beta；這是目前已驗證的環境，不代表所有 macOS／Xcode 組合都已驗證。
 
 ## 建置與執行
 

@@ -55,13 +55,18 @@ final class SessionDiscoveryCoordinator {
     let codexRolloutWatcher = CodexRolloutWatcher()
 
     @ObservationIgnored
-    private let codexRolloutDiscovery = CodexRolloutDiscovery()
+    // Bootstrap only recent rollout files; persisted sessions remain covered
+    // by the incremental watcher without replaying old completed transcripts.
+    private let codexRolloutDiscovery = CodexRolloutDiscovery(maxAge: 3_600)
 
     @ObservationIgnored
     private let claudeTranscriptDiscovery = ClaudeTranscriptDiscovery()
 
     @ObservationIgnored
     private var codexSessionPersistenceTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var codexAppRescanTask: Task<Void, Never>?
 
     @ObservationIgnored
     private var claudeSessionPersistenceTask: Task<Void, Never>?
@@ -88,6 +93,7 @@ final class SessionDiscoveryCoordinator {
 
         let allCodex = (try? codexSessionStore.load()) ?? []
         let codexRecords = allCodex.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
+        let knownCodexTranscriptPaths = Set(codexRecords.compactMap(\.codexMetadata?.transcriptPath))
 
         let allClaude = (try? claudeSessionRegistry.load()) ?? []
         let claudeRecords = allClaude.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
@@ -98,7 +104,9 @@ final class SessionDiscoveryCoordinator {
         let allCursor = (try? cursorSessionRegistry.load()) ?? []
         let cursorRecords = allCursor.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
 
-        let discoveredCodex = codexRolloutDiscovery.discoverRecentSessions()
+        let discoveredCodex = codexRolloutDiscovery.discoverRecentSessions(
+            excludingTranscriptPaths: knownCodexTranscriptPaths
+        )
         let discoveredClaude = claudeTranscriptDiscovery.discoverRecentSessions()
 
         return StartupDiscoveryPayload(
@@ -370,9 +378,11 @@ final class SessionDiscoveryCoordinator {
 
     /// Periodic Codex.app maintenance: reconcile archived/stalled sessions and
     /// re-scan rollouts. Throttled internally; safe to call from the 2s monitor loop.
-    func maintainCodexAppSessionsIfNeeded() {
+    func maintainCodexAppSessionsIfNeeded(allowRolloutRediscovery: Bool = true) {
         reconcileStalledCodexAppSessionsIfNeeded()
-        rediscoverCodexAppSessionsIfNeeded()
+        if allowRolloutRediscovery {
+            rediscoverCodexAppSessionsIfNeeded()
+        }
     }
 
     func refreshCodexRolloutTracking() {
@@ -412,21 +422,32 @@ final class SessionDiscoveryCoordinator {
 
     // MARK: - Codex.app periodic re-discovery
 
-    /// Re-scan `~/.codex/sessions/` for rollout files not yet tracked.
+    /// Scan `~/.codex/sessions/` for rollout files not yet tracked.
     /// Called periodically when Codex.app is running as a fallback when
-    /// the app-server connection is unavailable.  Throttled to at most
-    /// once per 10 seconds.
+    /// the app-server connection is unavailable. Known transcript files are
+    /// excluded so the existing incremental watcher remains the only reader
+    /// of tracked sessions.
     func rediscoverCodexAppSessionsIfNeeded() {
         let now = Date.now
         guard now.timeIntervalSince(lastCodexAppRescanDate) >= 10 else { return }
+        guard codexAppRescanTask == nil else { return }
         lastCodexAppRescanDate = now
 
         let discovery = codexRolloutDiscovery
-        Task.detached(priority: .utility) { [weak self] in
-            let discovered = discovery.discoverRecentSessions()
-            guard !discovered.isEmpty else { return }
+        let existingTranscriptPaths = Set(
+            state.sessions
+                .filter { $0.tool == .codex }
+                .compactMap(\.codexMetadata?.transcriptPath)
+        )
+        codexAppRescanTask = Task.detached(priority: .utility) { [weak self] in
+            let discovered = discovery.discoverRecentSessions(
+                excludingTranscriptPaths: existingTranscriptPaths
+            )
             await MainActor.run { [weak self] in
-                self?.applyCodexAppRediscovery(discovered)
+                guard let self else { return }
+                self.codexAppRescanTask = nil
+                guard !discovered.isEmpty else { return }
+                self.applyCodexAppRediscovery(discovered)
             }
         }
     }

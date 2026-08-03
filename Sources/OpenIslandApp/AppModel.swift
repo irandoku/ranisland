@@ -703,7 +703,10 @@ final class AppModel {
             }
         }
         monitoring.onCodexAppMaintenanceTick = { [weak self] in
-            self?.discovery.maintainCodexAppSessionsIfNeeded()
+            guard let self else { return }
+            self.discovery.maintainCodexAppSessionsIfNeeded(
+                allowRolloutRediscovery: self.codexAppServer.shouldUseRolloutFallback
+            )
         }
         refreshOverlayDisplayConfiguration()
         hasFinishedInit = true

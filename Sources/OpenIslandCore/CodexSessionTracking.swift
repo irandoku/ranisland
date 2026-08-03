@@ -385,7 +385,14 @@ public final class CodexRolloutDiscovery: @unchecked Sendable {
         self.maxFiles = maxFiles
     }
 
-    public func discoverRecentSessions(now: Date = .now) -> [CodexTrackedSessionRecord] {
+    public func discoverRecentSessions(
+        now: Date = .now,
+        excludingTranscriptPaths: Set<String> = []
+    ) -> [CodexTrackedSessionRecord] {
+        let excludedPaths = Set(excludingTranscriptPaths.map {
+            URL(fileURLWithPath: $0).resolvingSymlinksInPath().path
+        })
+
         guard fileManager.fileExists(atPath: rootURL.path),
               let enumerator = fileManager.enumerator(
                 at: rootURL,
@@ -427,6 +434,7 @@ public final class CodexRolloutDiscovery: @unchecked Sendable {
 
                 return lhs.modifiedAt > rhs.modifiedAt
             }
+            .filter { !excludedPaths.contains($0.fileURL.resolvingSymlinksInPath().path) }
             .prefix(maxFiles)
 
         var recordsByID: [String: CodexTrackedSessionRecord] = [:]
