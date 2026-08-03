@@ -64,6 +64,9 @@ final class SessionDiscoveryCoordinator {
     private var codexSessionPersistenceTask: Task<Void, Never>?
 
     @ObservationIgnored
+    private var codexAppRescanTask: Task<Void, Never>?
+
+    @ObservationIgnored
     private var claudeSessionPersistenceTask: Task<Void, Never>?
 
     @ObservationIgnored
@@ -370,9 +373,11 @@ final class SessionDiscoveryCoordinator {
 
     /// Periodic Codex.app maintenance: reconcile archived/stalled sessions and
     /// re-scan rollouts. Throttled internally; safe to call from the 2s monitor loop.
-    func maintainCodexAppSessionsIfNeeded() {
+    func maintainCodexAppSessionsIfNeeded(allowRolloutRediscovery: Bool = true) {
         reconcileStalledCodexAppSessionsIfNeeded()
-        rediscoverCodexAppSessionsIfNeeded()
+        if allowRolloutRediscovery {
+            rediscoverCodexAppSessionsIfNeeded()
+        }
     }
 
     func refreshCodexRolloutTracking() {
@@ -419,14 +424,17 @@ final class SessionDiscoveryCoordinator {
     func rediscoverCodexAppSessionsIfNeeded() {
         let now = Date.now
         guard now.timeIntervalSince(lastCodexAppRescanDate) >= 10 else { return }
+        guard codexAppRescanTask == nil else { return }
         lastCodexAppRescanDate = now
 
         let discovery = codexRolloutDiscovery
-        Task.detached(priority: .utility) { [weak self] in
+        codexAppRescanTask = Task.detached(priority: .utility) { [weak self] in
             let discovered = discovery.discoverRecentSessions()
-            guard !discovered.isEmpty else { return }
             await MainActor.run { [weak self] in
-                self?.applyCodexAppRediscovery(discovered)
+                guard let self else { return }
+                self.codexAppRescanTask = nil
+                guard !discovered.isEmpty else { return }
+                self.applyCodexAppRediscovery(discovered)
             }
         }
     }

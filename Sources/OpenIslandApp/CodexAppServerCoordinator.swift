@@ -33,6 +33,12 @@ final class CodexAppServerCoordinator {
 
     private(set) var isConnected = false
 
+    /// Rollout discovery is only needed when the app-server is unavailable.
+    /// Keep the fallback paused while a connection attempt is still running.
+    var shouldUseRolloutFallback: Bool {
+        !isConnected && connectTask == nil
+    }
+
     // MARK: - Public API
 
     /// Ensure a connection exists.  Called from the monitoring loop when
