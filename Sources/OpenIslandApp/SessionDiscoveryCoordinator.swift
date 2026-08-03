@@ -55,7 +55,9 @@ final class SessionDiscoveryCoordinator {
     let codexRolloutWatcher = CodexRolloutWatcher()
 
     @ObservationIgnored
-    private let codexRolloutDiscovery = CodexRolloutDiscovery()
+    // Bootstrap only recent rollout files; persisted sessions remain covered
+    // by the incremental watcher without replaying old completed transcripts.
+    private let codexRolloutDiscovery = CodexRolloutDiscovery(maxAge: 3_600)
 
     @ObservationIgnored
     private let claudeTranscriptDiscovery = ClaudeTranscriptDiscovery()
