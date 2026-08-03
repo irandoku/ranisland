@@ -2,13 +2,13 @@
 
 Ran Island is a personal macOS fork of [Open Island](https://github.com/Octane0411/open-vibe-island): a small, local-first notch companion for coding-agent sessions with an Apple Music surface.
 
-This repository is an independent fork, not an official Open Island release. Version `0.1.0` focuses on the parts that are useful in daily use: the existing agent session surface plus a deliberately small music experience.
+This repository is an independent fork, not an official Open Island release. Version `0.1.1` keeps the daily-use agent and music surfaces while hardening Codex rollout discovery for lower idle CPU usage.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square)](LICENSE)
 
 [简体中文](README.zh-CN.md) · [繁體中文（台灣）](README.zh-TW.md)
 
-## v0.1.0
+## v0.1.1
 
 - Keeps the existing agent session list, status display, approvals, and jump-back workflow.
 - Closed notch: current Apple Music album artwork on the left and the active session count on the right.
@@ -16,7 +16,8 @@ This repository is an independent fork, not an official Open Island release. Ver
 - Agent list: compact Apple Music mini-player with track information and play/pause.
 - Music surface: click the mini-player to open the full Apple Music control panel.
 - Metadata and playback control use AppleScript; the bundled [MediaRemote Adapter](https://github.com/ungive/mediaremote-adapter) is used as an artwork fallback.
-- Hermes integration is intentionally not included in v0.1.0.
+- Codex rollout discovery avoids overlapping scans, re-reading known transcripts, and bootstrapping from old completed transcripts.
+- Hermes integration is intentionally not included in v0.1.1.
 
 The package and executable targets still use the upstream `OpenIsland*` names internally. Keeping those identifiers avoids breaking existing hook paths, app-support data, and local automation while the public project name becomes Ran Island.
 
@@ -27,7 +28,7 @@ The package and executable targets still use the upstream `OpenIsland*` names in
 - Apple Music for the music surface
 - Automation permission when macOS asks Ran Island to control Music or focus a terminal
 
-The current personal validation environment is macOS 27 beta with Xcode 27 beta. This is the tested environment for v0.1.0; it is not a claim that every macOS/Xcode combination has been validated.
+The current personal validation environment is macOS 27 beta with Xcode 27 beta. This is the tested environment for v0.1.1; it is not a claim that every macOS/Xcode combination has been validated.
 
 ## Build and run
 
@@ -47,7 +48,7 @@ DEVELOPER_DIR="/Applications/Xcode-beta.app" xcrun swift build
 DEVELOPER_DIR="/Applications/Xcode-beta.app" xcrun swift test
 ```
 
-The app target is `OpenIslandApp` because the internal Swift package target names are intentionally retained for v0.1.0 compatibility.
+The app target is `OpenIslandApp` because the internal Swift package target names are intentionally retained for v0.1.1 compatibility.
 
 ## How it is arranged
 
